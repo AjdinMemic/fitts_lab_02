@@ -642,6 +642,51 @@
             font-size: 13px;
             line-height: 1.6;
         }
+
+        .study-trial-badge {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--dark);
+            color: white;
+            padding: 4px 16px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .study-trial-badge.practice {
+            background: var(--warning);
+            color: #000;
+        }
+        .study-start-marker {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--gray);
+            border-radius: 50%;
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+        }
+        .study-start-marker::before,
+        .study-start-marker::after {
+            content: '';
+            position: absolute;
+            background: var(--gray);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .study-start-marker::before {
+            width: 1px;
+            height: 12px;
+        }
+        .study-start-marker::after {
+            width: 12px;
+            height: 1px;
+        }
     </style>
 </head>
 <body>
@@ -666,7 +711,7 @@
             <div class="sidebar">
                 <div class="section">
                     <h3>Testmodus</h3>
-                    <div class="mode-selector">
+                    <div class="mode-selector" style="grid-template-columns: 1fr;">
                         <button class="mode-btn active" onclick="setMode('abstract')">
                             <strong>Abstrakte Ziele</strong>
                             <p style="font-size: 12px; color: #6b7280; margin-top: 4px;">Zufällige Buttons</p>
@@ -675,6 +720,21 @@
                             <strong>HTML-Elemente</strong>
                             <p style="font-size: 12px; color: #6b7280; margin-top: 4px;">Reale Webseite</p>
                         </button>
+                        <button class="mode-btn" onclick="setMode('study')">
+                            <strong>Nutzerstudie</strong>
+                            <p style="font-size: 12px; color: #6b7280; margin-top: 4px;">50 kontrollierte Trials</p>
+                        </button>
+                    </div>
+
+                    <div id="studyInfoPanel" style="display:none; background:#fff; border:1px solid var(--border); padding:12px; margin-top:12px; font-size:13px;">
+                        <div style="font-weight:600; margin-bottom:8px;">Studiendesign</div>
+                        <div style="color:var(--gray); line-height:1.8;">
+                            • 5 Übungsversuche (nicht gezählt)<br>
+                            • 50 Messversuche<br>
+                            • 10 Bedingungen × 5 Wiederholungen<br>
+                            • ID-Bereich: 1.3 – 5.7 bits<br>
+                            • Gemischte Zufallsreihenfolge
+                        </div>
                     </div>
 
                     <div class="demo-selector" id="demoSelector" style="display: none;">
@@ -900,6 +960,9 @@
                             <div style="font-size: 18px; font-weight: 600; text-align: center; margin: 16px 0; color: var(--dark);">
                                 MT = a + b × log₂(2D/W)
                             </div>
+                            <p style="font-size:12px; color:var(--gray); margin-top:8px;">
+                                Verwendete Formulierung: Fitts (1954). Alternative: Shannon-Formulierung log₂(D/W + 1).
+                            </p>
                             <ul style="margin-top: 16px; margin-left: 20px; line-height: 1.8; font-size: 14px;">
                                 <li><strong>MT</strong> = Movement Time (Bewegungszeit in ms)</li>
                                 <li><strong>a</strong> = Intercept (Startzeit/Reaktionszeit)</li>
@@ -1160,6 +1223,7 @@
             // Show/hide relevant controls
             document.getElementById('sizeRangeGroup').style.display = mode === 'abstract' ? 'block' : 'none';
             document.getElementById('demoSelector').style.display = mode === 'html' ? 'block' : 'none';
+            document.getElementById('studyInfoPanel').style.display = mode === 'study' ? 'block' : 'none';
 
             if (mode === 'html') {
                 // Reset demo selector if custom HTML was loaded
@@ -1285,10 +1349,13 @@
             document.getElementById('experimentStatus').classList.add('active');
 
             if (currentMode === 'abstract') {
-                // Clear area for abstract targets
                 testArea.classList.remove('html-elements-container');
                 testArea.innerHTML = '';
                 generateTargets();
+            } else if (currentMode === 'study') {
+                testArea.classList.remove('html-elements-container');
+                testArea.innerHTML = '';
+                generateUserStudyTargets();
             } else {
                 // Use HTML elements as targets
                 generateHTMLTargets();
@@ -1539,7 +1606,9 @@
 
             const target = targets[currentTarget];
 
-            if (target.type === 'abstract') {
+            if (target.type === 'study') {
+                showStudyTarget(target);
+            } else if (target.type === 'abstract') {
                 const testArea = document.getElementById('testArea');
 
                 // Clear previous target
@@ -1614,9 +1683,9 @@
                 Math.pow(centerY - lastPosition.y, 2)
             );
 
-            // Calculate Index of Difficulty using effective width
+            // Using min dimension as W per 2D Fitts' Law convention (conservative approach for rectangular targets)
             const effectiveWidth = Math.min(target.width, target.height);
-            const ID = Math.log2(2 * distance / effectiveWidth);
+            const ID = Math.max(0.1, Math.log2(2 * distance / effectiveWidth));
 
             // Calculate theoretical movement time
             const a = parseFloat(document.getElementById('paramA').value);
@@ -1634,8 +1703,19 @@
                 theoreticalMT: theoreticalMT,
                 actualMT: movementTime,
                 difference: movementTime - theoreticalMT,
-                hit: true
+                hit: true,
+                isFirstTrial: currentTarget === 0  // first target uses arbitrary start distance
             });
+
+            // Practice trials are not recorded
+            if (target.isPractice) {
+                results.pop();
+                updateStatus();
+                lastPosition = { x: centerX, y: centerY };
+                currentTarget++;
+                setTimeout(() => showNextTarget(), 400);
+                return;
+            }
 
             hits++;
             updateStatus();
@@ -1691,8 +1771,9 @@
                     );
                 }
 
+                // Using min dimension as W per 2D Fitts' Law convention (conservative approach for rectangular targets)
                 const effectiveWidth = Math.min(target.width, target.height);
-                const ID = Math.log2(2 * distance / effectiveWidth);
+                const ID = Math.max(0.1, Math.log2(2 * distance / effectiveWidth));
 
                 const a = parseFloat(document.getElementById('paramA').value);
                 const b = parseFloat(document.getElementById('paramB').value);
@@ -1727,7 +1808,17 @@
 
         function updateStatus() {
             const total = targets.length;
-            document.getElementById('progressStatus').textContent = `${Math.min(currentTarget + 1, total)} / ${total}`;
+            if (currentMode === 'study') {
+                const practiceCount = targets.filter(t => t.isPractice).length;
+                const measurementTrials = total - practiceCount;
+                const currentMeasurement = Math.max(0, Math.min(currentTarget + 1 - practiceCount, measurementTrials));
+                document.getElementById('progressStatus').textContent =
+                    currentTarget < practiceCount
+                        ? `Übung ${currentTarget + 1}/${practiceCount}`
+                        : `${currentMeasurement} / ${measurementTrials}`;
+            } else {
+                document.getElementById('progressStatus').textContent = `${Math.min(currentTarget + 1, total)} / ${total}`;
+            }
             document.getElementById('hitStatus').textContent = hits;
             document.getElementById('missStatus').textContent = misses;
 
@@ -1753,8 +1844,8 @@
                 return 0;
             });
 
-            // Calculate statistics (only for hits)
-            const validResults = results.filter(r => r.hit);
+            // Calculate statistics (only for hits with positive ID)
+            const validResults = results.filter(r => r.hit && r.ID > 0);
             const allResults = results; // Include misses for display
 
             if (validResults.length === 0 && results.length > 0) {
@@ -2044,6 +2135,7 @@
             csv += `Total Attempts,${hits + misses}\n`;
             csv += `Parameter a,${document.getElementById('paramA').value}\n`;
             csv += `Parameter b,${document.getElementById('paramB').value}\n`;
+            csv += `Test_Mode,${currentMode}\n`;
 
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const url = window.URL.createObjectURL(blob);
@@ -2594,6 +2686,157 @@
                     }
                 }
             });
+        }
+
+        // ====== NUTZERSTUDIE (USER STUDY) MODE ======
+
+        // 10 conditions covering ID from ~1.3 to ~5.7 bits
+        // W = horizontal width (Fitts dimension), H = height (H > W so min(W,H) = W)
+        // D = exact distance from previous target center to new target center
+        const STUDY_CONDITIONS = [
+            { D: 100, W: 80,  H: 130, label: 'C01' },  // ID ≈ 1.32
+            { D: 150, W: 70,  H: 115, label: 'C02' },  // ID ≈ 2.10
+            { D: 200, W: 60,  H: 100, label: 'C03' },  // ID ≈ 2.74
+            { D: 250, W: 55,  H: 90,  label: 'C04' },  // ID ≈ 3.18
+            { D: 280, W: 50,  H: 80,  label: 'C05' },  // ID ≈ 3.49
+            { D: 320, W: 42,  H: 70,  label: 'C06' },  // ID ≈ 3.93
+            { D: 360, W: 35,  H: 60,  label: 'C07' },  // ID ≈ 4.36
+            { D: 400, W: 28,  H: 50,  label: 'C08' },  // ID ≈ 4.84
+            { D: 440, W: 22,  H: 42,  label: 'C09' },  // ID ≈ 5.32
+            { D: 480, W: 18,  H: 36,  label: 'C10' },  // ID ≈ 5.74
+        ];
+
+        const PRACTICE_CONDITIONS = [
+            { D: 150, W: 70, H: 115 },
+            { D: 200, W: 60, H: 100 },
+            { D: 250, W: 55, H: 90  },
+            { D: 200, W: 60, H: 100 },
+            { D: 150, W: 70, H: 115 },
+        ];
+
+        function shuffle(arr) {
+            const a = [...arr];
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [a[i], a[j]] = [a[j], a[i]];
+            }
+            return a;
+        }
+
+        function generateUserStudyTargets() {
+            const testArea = document.getElementById('testArea');
+            const bounds = testArea.getBoundingClientRect();
+            const areaW = bounds.width;
+            const areaH = bounds.height;
+
+            const centerX = areaW / 2;
+            const centerY = areaH / 2;
+
+            // Build 5 repetition blocks, each containing all 10 conditions shuffled
+            let measurementConditions = [];
+            for (let rep = 0; rep < 5; rep++) {
+                measurementConditions = measurementConditions.concat(shuffle(STUDY_CONDITIONS));
+            }
+
+            // Practice trials first (not counted), then measurement trials
+            const allConditions = [
+                ...PRACTICE_CONDITIONS.map(c => ({ ...c, isPractice: true })),
+                ...measurementConditions.map(c => ({ ...c, isPractice: false }))
+            ];
+
+            // Generate target positions
+            targets = [];
+            let prevCenter = { x: centerX, y: centerY };
+            let measurementCount = 0;
+
+            allConditions.forEach((cond, i) => {
+                if (!cond.isPractice) measurementCount++;
+
+                const pos = placeAtDistance(prevCenter, cond.D, cond.W, cond.H, areaW, areaH);
+
+                const target = {
+                    id: i,
+                    x: pos.x,
+                    y: pos.y,
+                    width: cond.W,
+                    height: cond.H,
+                    text: cond.isPractice ? 'ÜBUNG' : `${measurementCount}`,
+                    type: 'study',
+                    isPractice: cond.isPractice,
+                    trialNumber: cond.isPractice ? null : measurementCount,
+                    conditionLabel: cond.label || '',
+                    targetD: cond.D,   // store intended D for reference
+                    targetW: cond.W,
+                };
+
+                prevCenter = { x: pos.x + cond.W / 2, y: pos.y + cond.H / 2 };
+                targets.push(target);
+            });
+        }
+
+        function placeAtDistance(prev, D, W, H, areaW, areaH) {
+            const margin = 20;
+            const cx = prev.x;
+            const cy = prev.y;
+
+            // Try up to 36 angles (10-degree steps) to find a valid placement
+            const startAngle = Math.random() * Math.PI * 2;
+            for (let step = 0; step < 36; step++) {
+                const angle = startAngle + step * (Math.PI / 18);
+                const tx = cx + D * Math.cos(angle) - W / 2;
+                const ty = cy + D * Math.sin(angle) - H / 2;
+
+                if (tx >= margin && tx + W <= areaW - margin &&
+                    ty >= margin && ty + H <= areaH - margin) {
+                    return { x: tx, y: ty };
+                }
+            }
+
+            // Fallback: place near center with slight offset
+            const fallbackX = Math.max(margin, Math.min(areaW - W - margin, cx - W / 2 + (Math.random() - 0.5) * 100));
+            const fallbackY = Math.max(margin, Math.min(areaH - H - margin, cy - H / 2 + (Math.random() - 0.5) * 100));
+            return { x: fallbackX, y: fallbackY };
+        }
+
+        function showStudyTarget(target) {
+            const testArea = document.getElementById('testArea');
+            testArea.innerHTML = '';
+
+            // Progress badge
+            const badge = document.createElement('div');
+            badge.className = 'study-trial-badge' + (target.isPractice ? ' practice' : '');
+            if (target.isPractice) {
+                const practiceIdx = targets.filter(t => t.isPractice).findIndex(t => t.id === target.id) + 1;
+                badge.textContent = `ÜBUNG ${practiceIdx}/5 — Nicht gezählt`;
+            } else {
+                badge.textContent = `Messung ${target.trialNumber}/50`;
+            }
+            testArea.appendChild(badge);
+
+            // Previous position crosshair marker
+            const marker = document.createElement('div');
+            marker.className = 'study-start-marker';
+            marker.style.left = lastPosition.x + 'px';
+            marker.style.top = lastPosition.y + 'px';
+            testArea.appendChild(marker);
+
+            // Target button
+            const btn = document.createElement('button');
+            btn.className = 'test-target next';
+            btn.style.left   = target.x + 'px';
+            btn.style.top    = target.y + 'px';
+            btn.style.width  = target.width + 'px';
+            btn.style.height = target.height + 'px';
+            btn.style.fontSize = Math.max(10, Math.min(14, target.width / 4)) + 'px';
+            btn.textContent  = target.text;
+
+            btn.onclick = function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                handleTargetClick(target);
+            };
+
+            testArea.appendChild(btn);
         }
 
         function exportMLResultsCSV() {
