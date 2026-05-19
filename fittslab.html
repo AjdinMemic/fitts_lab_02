@@ -1173,7 +1173,7 @@
 
                 let isHit = false;
 
-                if (target.type === 'abstract') {
+                if (target.type === 'abstract' || target.type === 'study') {
                     // Check if click is within target bounds
                     isHit = (clickX >= target.x &&
                             clickX <= target.x + target.width &&
