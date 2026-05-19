@@ -1165,11 +1165,11 @@
                 // ✅ FIX: Check if event was already handled by target's direct handler
                 if (e.defaultPrevented) return;
 
-                // Get click position relative to test area
+                // Get click position relative to test area content edge (inside border)
                 const testArea = document.getElementById('testArea');
                 const rect = testArea.getBoundingClientRect();
-                const clickX = e.clientX - rect.left;
-                const clickY = e.clientY - rect.top;
+                const clickX = e.clientX - rect.left - testArea.clientLeft;
+                const clickY = e.clientY - rect.top - testArea.clientTop;
 
                 let isHit = false;
 
@@ -1411,7 +1411,7 @@
             const count = parseInt(document.getElementById('targetCount').value);
             const sizeRange = document.getElementById('sizeRange').value;
             const testArea = document.getElementById('testArea');
-            const bounds = testArea.getBoundingClientRect();
+            const bounds = { width: testArea.clientWidth, height: testArea.clientHeight };
 
             let minSize, maxSize;
             switch(sizeRange) {
@@ -1674,8 +1674,7 @@
             if (currentTarget === 0 && Object.keys(lastPosition).length === 0) {
                 // First target, first click - use default starting position (center of test area)
                 const testArea = document.getElementById('testArea');
-                const bounds = testArea.getBoundingClientRect();
-                lastPosition = { x: bounds.width / 2, y: bounds.height / 2 };
+                lastPosition = { x: testArea.clientWidth / 2, y: testArea.clientHeight / 2 };
             }
 
             distance = Math.sqrt(
@@ -1739,10 +1738,12 @@
             // Visual feedback for miss
             const testArea = document.getElementById('testArea');
             const rect = testArea.getBoundingClientRect();
+            const missX = e.clientX - rect.left - testArea.clientLeft;
+            const missY = e.clientY - rect.top - testArea.clientTop;
             const indicator = document.createElement('div');
             indicator.className = 'miss-indicator';
-            indicator.style.left = (e.clientX - rect.left - 10) + 'px';
-            indicator.style.top = (e.clientY - rect.top - 10) + 'px';
+            indicator.style.left = (missX - 10) + 'px';
+            indicator.style.top = (missY - 10) + 'px';
             testArea.appendChild(indicator);
 
             // Remove indicator after animation
@@ -1758,8 +1759,8 @@
                     const targetCenterX = target.x + target.width / 2;
                     const targetCenterY = target.y + target.height / 2;
                     distance = Math.sqrt(
-                        Math.pow((e.clientX - rect.left) - targetCenterX, 2) +
-                        Math.pow((e.clientY - rect.top) - targetCenterY, 2)
+                        Math.pow(missX - targetCenterX, 2) +
+                        Math.pow(missY - targetCenterY, 2)
                     );
                 } else {
                     // Use distance from last position
@@ -1791,15 +1792,12 @@
                     actualMT: movementTime,
                     difference: movementTime - theoreticalMT,
                     hit: false,
-                    missX: e.clientX - rect.left,
-                    missY: e.clientY - rect.top
+                    missX: missX,
+                    missY: missY
                 });
 
                 // Update last click position for misses too
-                lastPosition = {
-                    x: e.clientX - rect.left,
-                    y: e.clientY - rect.top
-                };
+                lastPosition = { x: missX, y: missY };
                 lastClickTime = performance.now();
             }
 
@@ -2725,9 +2723,8 @@
 
         function generateUserStudyTargets() {
             const testArea = document.getElementById('testArea');
-            const bounds = testArea.getBoundingClientRect();
-            const areaW = bounds.width;
-            const areaH = bounds.height;
+            const areaW = testArea.clientWidth;
+            const areaH = testArea.clientHeight;
 
             const centerX = areaW / 2;
             const centerY = areaH / 2;
