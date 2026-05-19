@@ -645,21 +645,21 @@
 
         .study-trial-badge {
             position: absolute;
-            top: 10px;
+            top: 8px;
             left: 50%;
             transform: translateX(-50%);
-            background: var(--dark);
-            color: white;
-            padding: 4px 16px;
-            font-size: 12px;
-            font-weight: 600;
-            letter-spacing: 0.05em;
+            background: transparent;
+            color: rgba(0,0,0,0.25);
+            padding: 2px 10px;
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.04em;
             z-index: 10;
             pointer-events: none;
+            white-space: nowrap;
         }
         .study-trial-badge.practice {
-            background: var(--warning);
-            color: #000;
+            color: rgba(0,0,0,0.3);
         }
         .study-start-marker {
             position: absolute;
@@ -1174,11 +1174,11 @@
                 let isHit = false;
 
                 if (target.type === 'abstract' || target.type === 'study') {
-                    // Check if click is within target bounds
-                    isHit = (clickX >= target.x &&
-                            clickX <= target.x + target.width &&
-                            clickY >= target.y &&
-                            clickY <= target.y + target.height);
+                    // 1px tolerance handles sub-pixel rendering at edges
+                    isHit = (clickX >= target.x - 1 &&
+                            clickX <= target.x + target.width + 1 &&
+                            clickY >= target.y - 1 &&
+                            clickY <= target.y + target.height + 1);
                 } else {
                     // HTML mode - check if clicked element is the target or its child
                     isHit = (e.target === target.element || target.element.contains(e.target));
@@ -2839,8 +2839,7 @@
             btn.style.top    = target.y + 'px';
             btn.style.width  = target.width + 'px';
             btn.style.height = target.height + 'px';
-            btn.style.fontSize = Math.max(10, Math.min(14, target.width / 4)) + 'px';
-            btn.textContent  = target.text;
+            btn.textContent  = '';
 
             btn.onclick = function(e) {
                 e.stopPropagation();
