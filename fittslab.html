@@ -1174,11 +1174,11 @@
                 let isHit = false;
 
                 if (target.type === 'abstract' || target.type === 'study') {
-                    // 1px tolerance handles sub-pixel rendering at edges
-                    isHit = (clickX >= target.x - 1 &&
-                            clickX <= target.x + target.width + 1 &&
-                            clickY >= target.y - 1 &&
-                            clickY <= target.y + target.height + 1);
+                    // 2px tolerance covers sub-pixel rendering + float coordinate rounding
+                    isHit = (clickX >= target.x - 2 &&
+                            clickX <= target.x + target.width + 2 &&
+                            clickY >= target.y - 2 &&
+                            clickY <= target.y + target.height + 2);
                 } else {
                     // HTML mode - check if clicked element is the target or its child
                     isHit = (e.target === target.element || target.element.contains(e.target));
