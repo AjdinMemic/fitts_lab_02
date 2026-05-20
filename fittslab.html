@@ -1182,6 +1182,14 @@
                             clickX <= target.x + target.width + 2 &&
                             clickY >= target.y - 2 &&
                             clickY <= target.y + target.height + 2);
+
+                    console.log(
+                        `[FittsLab] Trial ${target.trialNumber ?? 'P'} | ` +
+                        `click(${clickX.toFixed(1)}, ${clickY.toFixed(1)}) | ` +
+                        `target x:[${(target.x-2).toFixed(1)}–${(target.x+target.width+2).toFixed(1)}] ` +
+                        `y:[${(target.y-2).toFixed(1)}–${(target.y+target.height+2).toFixed(1)}] ` +
+                        `(W=${target.width} H=${target.height}) → ${isHit ? '✅ HIT' : '❌ MISS'}`
+                    );
                 } else {
                     // HTML mode - check if clicked element is the target or its child
                     isHit = (e.target === target.element || target.element.contains(e.target));
