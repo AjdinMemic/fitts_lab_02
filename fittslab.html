@@ -1628,11 +1628,13 @@
                 // Create target button
                 const btn = document.createElement('button');
                 btn.className = 'test-target next';
-                btn.style.left = target.x + 'px';
-                btn.style.top = target.y + 'px';
-                btn.style.width = target.width + 'px';
-                btn.style.height = target.height + 'px';
-                btn.textContent = target.text;
+                btn.style.left      = target.x + 'px';
+                btn.style.top       = target.y + 'px';
+                btn.style.width     = target.width + 'px';
+                btn.style.height    = target.height + 'px';
+                btn.style.minWidth  = '0';
+                btn.style.minHeight = '0';
+                btn.textContent     = target.text;
 
                 btn.onclick = function(e) {
                     e.stopPropagation();
@@ -2850,11 +2852,14 @@
             // Target button
             const btn = document.createElement('button');
             btn.className = 'test-target next';
-            btn.style.left   = target.x + 'px';
-            btn.style.top    = target.y + 'px';
-            btn.style.width  = target.width + 'px';
-            btn.style.height = target.height + 'px';
-            btn.textContent  = '';
+            btn.style.left      = target.x + 'px';
+            btn.style.top       = target.y + 'px';
+            btn.style.width     = target.width + 'px';
+            btn.style.height    = target.height + 'px';
+            btn.style.padding   = '0';
+            btn.style.minWidth  = '0';
+            btn.style.minHeight = '0';
+            btn.textContent     = '';
 
             btn.onclick = function(e) {
                 e.stopPropagation();
