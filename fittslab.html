@@ -729,12 +729,15 @@
                     <div id="studyInfoPanel" style="display:none; background:#fff; border:1px solid var(--border); padding:12px; margin-top:12px; font-size:13px;">
                         <div style="font-weight:600; margin-bottom:8px;">Studiendesign</div>
                         <div style="color:var(--gray); line-height:1.8;">
-                            • 5 Übungsversuche (nicht gezählt)<br>
-                            • 50 Messversuche<br>
+                            • 50 Messversuche (1–50)<br>
                             • 10 Bedingungen × 5 Wiederholungen<br>
                             • ID-Bereich: 1.3 – 5.7 bits<br>
                             • Gemischte Zufallsreihenfolge
                         </div>
+                        <label style="display:flex; align-items:center; gap:8px; margin-top:10px; cursor:pointer; color:var(--dark);">
+                            <input type="checkbox" id="includePractice" checked style="width:14px; height:14px; cursor:pointer;">
+                            5 Übungsrunden voranstellen (nicht gezählt)
+                        </label>
                     </div>
 
                     <div class="demo-selector" id="demoSelector" style="display: none;">
@@ -1693,7 +1696,7 @@
 
             // Always store result (even for first target, useful for analysis)
             results.push({
-                target: currentTarget,
+                target: target.trialNumber ?? (currentTarget + 1),
                 distance: distance,
                 width: target.width,
                 height: target.height,
@@ -1703,7 +1706,7 @@
                 actualMT: movementTime,
                 difference: movementTime - theoreticalMT,
                 hit: true,
-                isFirstTrial: currentTarget === 0  // first target uses arbitrary start distance
+                isFirstTrial: currentTarget === 0
             });
 
             // Practice trials are not recorded
@@ -1752,10 +1755,17 @@
             // Get current target for distance calculation
             const target = targets[currentTarget];
             if (target) {
+                // Practice misses are not logged (consistent with practice hits)
+                if (target.isPractice) {
+                    lastPosition = { x: missX, y: missY };
+                    lastClickTime = performance.now();
+                    updateStatus();
+                    return;
+                }
+
                 // Calculate distance from last position (or center if first click)
                 let distance = 0;
                 if (currentTarget === 0 && !lastClickTime) {
-                    // First target, use distance from click position to target
                     const targetCenterX = target.x + target.width / 2;
                     const targetCenterY = target.y + target.height / 2;
                     distance = Math.sqrt(
@@ -1763,7 +1773,6 @@
                         Math.pow(missY - targetCenterY, 2)
                     );
                 } else {
-                    // Use distance from last position
                     const centerX = target.x + target.width / 2;
                     const centerY = target.y + target.height / 2;
                     distance = Math.sqrt(
@@ -1772,7 +1781,6 @@
                     );
                 }
 
-                // Using min dimension as W per 2D Fitts' Law convention (conservative approach for rectangular targets)
                 const effectiveWidth = Math.min(target.width, target.height);
                 const ID = Math.max(0.1, Math.log2(2 * distance / effectiveWidth));
 
@@ -1780,9 +1788,8 @@
                 const b = parseFloat(document.getElementById('paramB').value);
                 const theoreticalMT = a + b * ID;
 
-                // Log the miss as a result
                 results.push({
-                    target: currentTarget,
+                    target: target.trialNumber ?? (currentTarget + 1),
                     distance: distance,
                     width: target.width,
                     height: target.height,
@@ -2105,7 +2112,7 @@
 
             let csv = 'Target,Distance_px,Width_px,Height_px,Effective_Width_px,ID_bits,Theoretical_MT_ms,Actual_MT_ms,Difference_ms,Hit_Status,Miss_X,Miss_Y\n';
             sortedResults.forEach(r => {
-                csv += `${r.target + 1},${r.distance.toFixed(2)},${r.width.toFixed(2)},${r.height.toFixed(2)},${r.effectiveWidth.toFixed(2)},${r.ID.toFixed(3)},${r.theoreticalMT.toFixed(2)},${r.actualMT.toFixed(2)},${r.difference.toFixed(2)},${r.hit ? 'HIT' : 'MISS'},${r.missX ? r.missX.toFixed(2) : ''},${r.missY ? r.missY.toFixed(2) : ''}\n`;
+                csv += `${r.target},${r.distance.toFixed(2)},${r.width.toFixed(2)},${r.height.toFixed(2)},${r.effectiveWidth.toFixed(2)},${r.ID.toFixed(3)},${r.theoreticalMT.toFixed(2)},${r.actualMT.toFixed(2)},${r.difference.toFixed(2)},${r.hit ? 'HIT' : 'MISS'},${r.missX ? r.missX.toFixed(2) : ''},${r.missY ? r.missY.toFixed(2) : ''}\n`;
             });
 
             // Add summary statistics
@@ -2735,9 +2742,9 @@
                 measurementConditions = measurementConditions.concat(shuffle(STUDY_CONDITIONS));
             }
 
-            // Practice trials first (not counted), then measurement trials
+            const withPractice = document.getElementById('includePractice')?.checked !== false;
             const allConditions = [
-                ...PRACTICE_CONDITIONS.map(c => ({ ...c, isPractice: true })),
+                ...(withPractice ? PRACTICE_CONDITIONS.map(c => ({ ...c, isPractice: true })) : []),
                 ...measurementConditions.map(c => ({ ...c, isPractice: false }))
             ];
 
